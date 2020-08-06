@@ -1,0 +1,1 @@
+This is the C++ high performance library designed to improve vector and matrix performance using intel AVX.

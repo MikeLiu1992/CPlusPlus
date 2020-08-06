@@ -9,3 +9,6 @@ quant_vector:
 
 testing:
 	${CPP} ${LINKER_CONFIG} -std=$(STANDARD) -o ${QUANT_VEC_PROJECT} "${TESTING_PROJECT}.cpp"
+
+float_class_testing:
+	${CPP} ${LINKER_CONFIG} -std=$(STANDARD) -o ${QUANT_VEC_PROJECT} tester_float.cpp
