@@ -1,7 +1,9 @@
 #include <immintrin.h>
 #include <vector>
+#include <stdlib.h>
 #include <exception>
 #include <initializer_list>
+#include <chrono>
 
 class quant_vector_overflow_exception: public std::exception
 {
@@ -45,7 +47,7 @@ public:
     {
         _arr_size = other.size();
         _capacity = _arr_size;
-        _arr_value = new T[_arr_size];
+        _arr_value = static_cast<T*>(_mm_malloc(sizeof(T) * _arr_size , 32));
         for (size_t i = 0; i < _arr_size; i ++)
         {
             _arr_value[i] = (T)other[i];
@@ -73,104 +75,88 @@ public:
         }
     }
 
-    quant_vector<T> operator+(const quant_vector<T> &other) const
+    quant_vector<T>& operator+=(const quant_vector<T> &other)
     {
         if (_arr_size != other.size())
         {
             throw size_unequal_ex;
         }
-        quant_vector<T> result(*this);
-        T *iter = result._arr_value;
+        T *iter = _arr_value;
         T *iterother = other._arr_value;
         int data_size = 32 / sizeof(T);
         const size_t aligendN = _arr_size - _arr_size % data_size;
-        size_t i = 0;
-        while (i < aligendN) 
+        for (size_t i = 0; i < aligendN; i += data_size)
         {
             fast_add(iter, _arr_value, iterother, i);
-            i+=data_size;
         }
-        while (i < _arr_size) 
+        for (size_t i = aligendN; i < _arr_size; i ++)
         {
             iter[i] += other[i];
-            i ++;
         }
-        return result;
+        return *this;
     }
-
-    quant_vector<T> operator-(const quant_vector<T> &other) const
+    
+    quant_vector<T>& operator-=(const quant_vector<T> &other)
     {
         if (_arr_size != other.size())
         {
             throw size_unequal_ex;
         }
-        quant_vector<T> result(*this);
-        T *iter = result._arr_value;
+        T *iter = _arr_value;
         T *iterother = other._arr_value;
         int data_size = 32 / sizeof(T);
         const size_t aligendN = _arr_size - _arr_size % data_size;
-        size_t i = 0;
-        while (i < aligendN) 
+        for (size_t i = 0; i < aligendN; i += data_size)
         {
             fast_minus(iter, _arr_value, iterother, i);
-            i+=data_size;
         }
-        while (i < _arr_size) 
+        for (size_t i = aligendN; i < _arr_size; i ++)
         {
             iter[i] -= other[i];
-            i ++;
         }
-        return result;
+        return *this;
     }
 
-    quant_vector<T> operator*(const quant_vector<T> &other) const
+    quant_vector<T>& operator*=(const quant_vector<T> &other)
     {
         if (_arr_size != other.size())
         {
             throw size_unequal_ex;
         }
-        quant_vector<T> result(*this);
-        T *iter = result._arr_value;
+        T *iter = _arr_value;
         T *iterother = other._arr_value;
         int data_size = 32 / sizeof(T);
         const size_t aligendN = _arr_size - _arr_size % data_size;
-        size_t i = 0;
-        while (i < aligendN) 
+        for (size_t i = 0; i < aligendN; i += data_size)
         {
             fast_multiply(iter, _arr_value, iterother, i);
-            i+=data_size;
         }
-        while (i < _arr_size) 
+        for (size_t i = aligendN; i < _arr_size; i ++)
         {
             iter[i] *= other[i];
-            i ++;
         }
-        return result;
+        return *this;
     }
 
-    quant_vector<T> operator/(const quant_vector<T> &other) const
+    quant_vector<T>& operator/=(const quant_vector<T> &other) 
     {
         if (_arr_size != other.size())
         {
             throw size_unequal_ex;
         }
-        quant_vector<T> result(*this);
-        T *iter = result._arr_value;
+        T *iter = _arr_value;
         T *iterother = other._arr_value;
         int data_size = 32 / sizeof(T);
         const size_t aligendN = _arr_size - _arr_size % data_size;
-        size_t i = 0;
-        while (i < aligendN) 
+        for (size_t i = 0; i < aligendN; i += data_size)
         {
             fast_divide(iter, _arr_value, iterother, i);
-            i+=data_size;
         }
-        while (i < _arr_size) 
+        for (size_t i = aligendN; i < _arr_size; i ++)
         {
             iter[i] /= other[i];
-            i ++;
         }
-        return result;
+        return *this;
     }
 
 protected:
@@ -216,52 +202,52 @@ size_t quant_vector<T>::capacity() const
 template <class T>
 void quant_vector<T>::fast_copy(double *dest_arr, double *orig_arr, size_t i)
 {
-    _mm256_storeu_pd(dest_arr + i * sizeof(double), _mm256_loadu_pd(orig_arr + i * sizeof(double)));
+    _mm256_store_pd(&dest_arr[i], _mm256_load_pd(&orig_arr[i]));
 }
 template <class T>
 void quant_vector<T>::fast_copy(float *dest_arr, float *orig_arr, size_t i)
 {
-    _mm256_storeu_ps(dest_arr + i * sizeof(float), _mm256_loadu_ps(orig_arr + i * sizeof(float)));
+    _mm256_store_ps(&dest_arr[i], _mm256_load_ps(&orig_arr[i]));
 }
 template <class T>
 void quant_vector<T>::fast_add(double *dest_arr, double *x_arr, double *y_arr, size_t i) const
 {
-    _mm256_storeu_pd(dest_arr + i *sizeof(double),_mm256_add_pd(_mm256_loadu_pd(&x_arr[i]),_mm256_loadu_pd(&y_arr[i])));
+    _mm256_store_pd(&dest_arr[i],_mm256_add_pd(_mm256_load_pd(&x_arr[i]),_mm256_load_pd(&y_arr[i])));
 }
 template <class T>
 void quant_vector<T>::fast_add(float *dest_arr, float *x_arr, float *y_arr, size_t i) const
 {
-    _mm256_storeu_ps(dest_arr + i *sizeof(float),_mm256_add_ps(_mm256_loadu_ps(&x_arr[i]),_mm256_loadu_ps(&y_arr[i])));
+    _mm256_store_ps(&dest_arr[i],_mm256_add_ps(_mm256_load_ps(&x_arr[i]),_mm256_load_ps(&y_arr[i])));
 }
 template <class T>
 void quant_vector<T>::fast_minus(double *dest_arr, double *x_arr, double *y_arr, size_t i) const
 {
-    _mm256_storeu_pd(dest_arr + i *sizeof(double),_mm256_sub_pd(_mm256_loadu_pd(&x_arr[i]),_mm256_loadu_pd(&y_arr[i])));
+    _mm256_store_pd(&dest_arr[i],_mm256_sub_pd(_mm256_load_pd(&x_arr[i]),_mm256_load_pd(&y_arr[i])));
 }
 template <class T>
 void quant_vector<T>::fast_minus(float *dest_arr, float *x_arr, float *y_arr, size_t i) const
 {
-    _mm256_storeu_ps(dest_arr + i *sizeof(float),_mm256_sub_ps(_mm256_loadu_ps(&x_arr[i]),_mm256_loadu_ps(&y_arr[i])));
+    _mm256_store_ps(&dest_arr[i],_mm256_sub_ps(_mm256_load_ps(&x_arr[i]),_mm256_load_ps(&y_arr[i])));
 }
 template <class T>
 void quant_vector<T>::fast_multiply(double *dest_arr, double *x_arr, double *y_arr, size_t i) const
 {
-    _mm256_storeu_pd(dest_arr + i *sizeof(double),_mm256_mul_pd(_mm256_loadu_pd(&x_arr[i]),_mm256_loadu_pd(&y_arr[i])));
+    _mm256_store_pd(&dest_arr[i],_mm256_mul_pd(_mm256_load_pd(&x_arr[i]),_mm256_load_pd(&y_arr[i])));
 }
 template <class T>
 void quant_vector<T>::fast_multiply(float *dest_arr, float *x_arr, float *y_arr, size_t i) const
 {
-    _mm256_storeu_ps(dest_arr + i *sizeof(float),_mm256_mul_ps(_mm256_loadu_ps(&x_arr[i]),_mm256_loadu_ps(&y_arr[i])));
+    _mm256_store_ps(&dest_arr[i],_mm256_mul_ps(_mm256_load_ps(&x_arr[i]),_mm256_load_ps(&y_arr[i])));
 }
 template <class T>
 void quant_vector<T>::fast_divide(double *dest_arr, double *x_arr, double *y_arr, size_t i) const
 {
-    _mm256_storeu_pd(dest_arr + i *sizeof(double),_mm256_div_pd(_mm256_loadu_pd(&x_arr[i]),_mm256_loadu_pd(&y_arr[i])));
+    _mm256_store_pd(&dest_arr[i],_mm256_div_pd(_mm256_load_pd(&x_arr[i]),_mm256_load_pd(&y_arr[i])));
 }
 template <class T>
 void quant_vector<T>::fast_divide(float *dest_arr, float *x_arr, float *y_arr, size_t i) const
 {
-    _mm256_storeu_ps(dest_arr + i *sizeof(float),_mm256_div_ps(_mm256_loadu_ps(&x_arr[i]),_mm256_loadu_ps(&y_arr[i])));
+    _mm256_storeu_ps(&dest_arr[i],_mm256_div_ps(_mm256_load_ps(&x_arr[i]),_mm256_load_ps(&y_arr[i])));
 }
 template <class T>
 quant_vector<T>::quant_vector()
@@ -283,13 +269,11 @@ quant_vector<T>::quant_vector(T other[], size_t arr_size)
     _arr_value = new T[_arr_size];
     int data_size = 32 / sizeof(T);
     const size_t aligendN = _arr_size - _arr_size % data_size;
-    size_t i = 0;
-    while (i < aligendN) 
+    for (size_t i = 0; i < aligendN; i += data_size)
     {
         fast_copy(_arr_value, other, i);
-        i+=data_size;
     }
-    while (i < _arr_size) 
+    for (size_t i = aligendN; i < _arr_size; i += data_size)
     {
         _arr_value[i] = other[i];
         i ++;
@@ -313,19 +297,17 @@ void quant_vector<T>::push_back(T k)
             T *new_arr = new T[_capacity];
             int data_size = 32 / sizeof(T);
             const size_t aligendN = _arr_size - _arr_size % data_size;
-            size_t i = 0;
-            while (i < aligendN) 
+            for (size_t i = 0; i < aligendN; i += data_size)
             {
                 fast_copy(new_arr, _arr_value, i);
-                i+=data_size;
             }
-            while (i < _arr_size) 
+            for (size_t i = aligendN; i < _arr_size; i += data_size)
             {
                 new_arr[i] = _arr_value[i];
                 i ++;
             } 
-    delete[] _arr_value;
-    _arr_value = new_arr;
+            delete[] _arr_value;
+            _arr_value = new_arr;
         }
         _arr_value[_arr_size] = k;
         _arr_size += 1;         
