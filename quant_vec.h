@@ -55,13 +55,25 @@ public:
         }
     }
 
-    quant_vector<T> operator=(const quant_vector<T> &other)
+    void operator=(const quant_vector<T> &other)
     {
-        if (&other == this)
-            return *this;
-        delete[] _arr_value;
-        list_initializer(other);
-        return *this;
+        if (this != &other)
+        {
+            _arr_size = other.size();
+            _capacity = _arr_size;
+            _arr_value = new (std::align_val_t(32)) T[_arr_size];
+            int data_size = 32 / sizeof(T);
+            T* iter = other._arr_value;
+            const size_t N = _arr_size - _arr_size % data_size;
+            for (size_t i = 0; i < N; i += data_size)
+            {
+                fast_copy(_arr_value, iter, i);   
+            }
+            for (size_t i = N; i < _arr_size; i ++)
+            {
+                _arr_value[i] = iter[i];
+            }
+        }        
     }
        
     T operator[](size_t i) const
@@ -270,7 +282,6 @@ quant_vector<T>::quant_vector(T other[], size_t arr_size)
     _arr_value = new (std::align_val_t(32)) T[_arr_size];
     int data_size = 32 / sizeof(T);
     const size_t N = _arr_size - _arr_size % data_size;
-    auto t1 = std::chrono::high_resolution_clock::now();
     for (size_t i = 0; i < N; i += data_size)
     {
         fast_copy(_arr_value, other, i);   
@@ -279,9 +290,6 @@ quant_vector<T>::quant_vector(T other[], size_t arr_size)
     {
         _arr_value[i] = other[i];
     }
-    auto t2 = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
-    std::cout << "new assignment time: " << duration << "ms" <<std::endl;
    
 }
 template <class T>

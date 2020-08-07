@@ -140,6 +140,24 @@ int main()
     }
     cout << "max value diff is: " << difference << endl;
 
+    //Assignment Speed:
+    t1 = std::chrono::high_resolution_clock::now();
+    vector<float> x5 = x3;
+    t2 = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
+    cout << "normal vector assignment time: " << duration  << "ms" << endl;
+    t1 = std::chrono::high_resolution_clock::now();
+    quant_float f3 = f1;
+    t2 = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
+    cout << "avx vector assignment time: " << duration  << "ms" << endl;
+    difference = 0;
+    for (int i = 0; i < SAMPLE_SIZE; i ++)
+    {
+        if (abs(f1[i] - f3[i]) > difference)
+            difference = abs(f1[i] - f3[i]);
+    }
+    cout << "max value diff is: " << difference << endl;
     delete[] x1;
     delete[] x2;
 }

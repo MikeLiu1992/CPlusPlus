@@ -37,13 +37,13 @@ int main()
     }
     auto t2 = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
-    cout << "normal vector assignment time: " << duration << "ms" <<endl;
+    cout << "normal vector init time: " << duration << "ms" <<endl;
     t1 = std::chrono::high_resolution_clock::now();
     quant_double f1(x1, SAMPLE_SIZE);
     quant_double f2(x2, SAMPLE_SIZE);
     t2 = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
-    cout << "avx vector assignment time: " << duration << "ms" <<endl;
+    cout << "avx vector init time: " << duration << "ms" <<endl;
     double difference = 0;
     for (int i = 0; i < SAMPLE_SIZE; i ++)
     {
@@ -140,6 +140,24 @@ int main()
     }
     cout << "max value diff is: " << difference << endl;
 
+    //Assignment Speed:
+    t1 = std::chrono::high_resolution_clock::now();
+    vector<double> x5 = x3;
+    t2 = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
+    cout << "normal vector assignment time: " << duration  << "ms" << endl;
+    t1 = std::chrono::high_resolution_clock::now();
+    quant_double f3 = f1;
+    t2 = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
+    cout << "avx vector assignment time: " << duration  << "ms" << endl;
+    difference = 0;
+    for (int i = 0; i < SAMPLE_SIZE; i ++)
+    {
+        if (abs(f1[i] - f3[i]) > difference)
+            difference = abs(f1[i] - f3[i]);
+    }
+    cout << "max value diff is: " << difference << endl;
     delete[] x1;
     delete[] x2;
 }
