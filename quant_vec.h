@@ -4,6 +4,7 @@
 #include <exception>
 #include <initializer_list>
 #include <chrono>
+#include <assert.h>
 
 class quant_vector_overflow_exception: public std::exception
 {
@@ -47,7 +48,7 @@ public:
     {
         _arr_size = other.size();
         _capacity = _arr_size;
-        _arr_value = static_cast<T*>(_mm_malloc(sizeof(T) * _arr_size , 32));
+        _arr_value = new (std::align_val_t(32)) T[_arr_size];
         for (size_t i = 0; i < _arr_size; i ++)
         {
             _arr_value[i] = (T)other[i];
@@ -266,18 +267,22 @@ quant_vector<T>::quant_vector(T other[], size_t arr_size)
 {
     _arr_size = arr_size;
     _capacity = _arr_size;
-    _arr_value = new T[_arr_size];
+    _arr_value = new (std::align_val_t(32)) T[_arr_size];
     int data_size = 32 / sizeof(T);
-    const size_t aligendN = _arr_size - _arr_size % data_size;
-    for (size_t i = 0; i < aligendN; i += data_size)
+    const size_t N = _arr_size - _arr_size % data_size;
+    auto t1 = std::chrono::high_resolution_clock::now();
+    for (size_t i = 0; i < N; i += data_size)
     {
-        fast_copy(_arr_value, other, i);
+        fast_copy(_arr_value, other, i);   
     }
-    for (size_t i = aligendN; i < _arr_size; i += data_size)
+    for (size_t i = N; i < _arr_size; i ++)
     {
         _arr_value[i] = other[i];
-        i ++;
     }
+    auto t2 = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
+    std::cout << "new assignment time: " << duration << "ms" <<std::endl;
+   
 }
 template <class T>
 void quant_vector<T>::push_back(T k)
@@ -286,7 +291,7 @@ void quant_vector<T>::push_back(T k)
     {
         _capacity = 2;
         _arr_size = 1;
-        _arr_value = new T[_capacity];
+        _arr_value = new (std::align_val_t(32)) T[_capacity];
         _arr_value[0] =  k;
     }
     else
@@ -294,7 +299,7 @@ void quant_vector<T>::push_back(T k)
         if (_arr_size == _capacity)
         {
             _capacity *= 2;
-            T *new_arr = new T[_capacity];
+            T *new_arr = new (std::align_val_t(32)) T[_capacity];
             int data_size = 32 / sizeof(T);
             const size_t aligendN = _arr_size - _arr_size % data_size;
             for (size_t i = 0; i < aligendN; i += data_size)

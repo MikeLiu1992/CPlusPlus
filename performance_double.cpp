@@ -1,9 +1,9 @@
 #include <stdio.h>
 #include <iostream>
 #include <vector>
-#include "quant_vec.h"
 #include <stdlib.h>     /* srand, rand */
 #include <chrono>
+#include "quant_vec.h"
 
 #define SAMPLE_SIZE 10000000
 
@@ -18,8 +18,8 @@ double fRand(double fMin, double fMax)
 int main()
 {
     //Generate value:
-    double *x1 = new double[SAMPLE_SIZE];
-    double *x2 = new double[SAMPLE_SIZE];
+    double *x1 = new (std::align_val_t(32)) double[SAMPLE_SIZE];
+    double *x2 = new (std::align_val_t(32)) double[SAMPLE_SIZE];
     for (int i = 0; i < SAMPLE_SIZE; i ++)
     {
         x1[i] = fRand(1, 100000);
@@ -27,9 +27,9 @@ int main()
     }
 
     //Assignment Speed:
+    auto t1 = std::chrono::high_resolution_clock::now();
     vector<double> x3(SAMPLE_SIZE, 0);
     vector<double> x4(SAMPLE_SIZE, 0);
-    auto t1 = std::chrono::high_resolution_clock::now();
     for (int i = 0; i < SAMPLE_SIZE; i ++)
     {
         x3[i] = x1[i]; 
@@ -38,8 +38,12 @@ int main()
     auto t2 = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
     cout << "normal vector assignment time: " << duration << "ms" <<endl;
-    quant_double f1(x3);
-    quant_double f2(x4);
+    t1 = std::chrono::high_resolution_clock::now();
+    quant_double f1(x1, SAMPLE_SIZE);
+    quant_double f2(x2, SAMPLE_SIZE);
+    t2 = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
+    cout << "avx vector assignment time: " << duration << "ms" <<endl;
     double difference = 0;
     for (int i = 0; i < SAMPLE_SIZE; i ++)
     {
